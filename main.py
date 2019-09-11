@@ -1,30 +1,14 @@
 from __future__ import print_function
-import argparse
-import os
-import random
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
-import torch.utils.data
-import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import torchvision.utils as vutils
-from torch.utils.data import Dataset, DataLoader
-
-import PIL.Image
-
-
-import torch
-import torchvision
-import torchvision.transforms as transforms
-
-import numpy as np
-from random import shuffle
+from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class Data(Dataset):
     def __init__(self, file_name):
@@ -62,8 +46,6 @@ class Data(Dataset):
         image = (image - 0.5) * 2
         return image, label
 
-
-
 class Generator(nn.Module):
     def __init__(self, embeddings=None, nc=3, nz=100, ngf=64):
         super(Generator, self).__init__()
@@ -72,7 +54,7 @@ class Generator(nn.Module):
         self.embeddings = embeddings
 
         self.main = nn.Sequential(
-            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False), # torch.Size([1, 512, 4, 4])
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False), # torch.Size([1, 512, 4, 4])
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False), # .Size([1, 256, 8, 8])
@@ -81,10 +63,10 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False), # e([1, 128, 16, 16])
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
-            nn.ConvTranspose2d(ngf * 2,     ngf, 4, 2, 1, bias=False), # .Size([1, 64, 32, 32])
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False), # .Size([1, 64, 32, 32])
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
-            nn.ConvTranspose2d(    ngf,      nc, kernel_size=1, stride=1, padding=0, bias=False), # ize([1, 3, 32, 32])
+            nn.ConvTranspose2d(ngf, nc, kernel_size=1, stride=1, padding=0, bias=False), # ize([1, 3, 32, 32])
             nn.Tanh()
         )
 
@@ -152,8 +134,8 @@ def main():
     netG.to(device)
 
     # setup optimizer
-    optimizerD = optim.Adam(netD.parameters(),lr=0.0002,betas=(0.5, 0.999))
-    optimizerG = optim.Adam(netG.parameters(),lr=0.0002,betas=(0.5, 0.999))
+    optimizerD = optim.Adam(netD.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizerG = optim.Adam(netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
     netD.train()
     netG.train()
@@ -163,10 +145,10 @@ def main():
     criterion = nn.BCELoss()
     criterion.to(device)
     
-    real_label = torch.ones([batchsize,1], dtype=torch.float).to(device)
-    fake_label = torch.zeros([batchsize,1], dtype=torch.float).to(device)
+    real_label = torch.ones([batchsize, 1], dtype=torch.float).to(device)
+    fake_label = torch.zeros([batchsize ,1], dtype=torch.float).to(device)
     
-    for epoch in range(500):
+    for _ in range(500):
         index = 0
         for i, (input_sequence, label) in enumerate(train_data_loader):
             fixed_noise = torch.randn(batchsize, nz, 1, 1, device=device)
@@ -178,13 +160,13 @@ def main():
             '''
 
             D_real_result = netD(input_sequence, label_embed)
-            D_real_loss = criterion(D_real_result.view(batchsize,-1), real_label)
+            D_real_loss = criterion(D_real_result.view(batchsize, -1), real_label)
 
-            G_result = netG(fixed_noise,label_embed)
+            G_result = netG(fixed_noise, label_embed)
 
-            D_fake_result = netD(G_result,label_embed)
+            D_fake_result = netD(G_result, label_embed)
 
-            D_fake_loss = criterion(D_fake_result.view(batchsize,-1), fake_label)
+            D_fake_loss = criterion(D_fake_result.view(batchsize, -1), fake_label)
 
             # Back propagation
             D_train_loss = (D_real_loss + D_fake_loss) / 2
@@ -196,13 +178,13 @@ def main():
             '''
                 Update G network: maximize log(D(G(z)))
             '''
-            new_label = torch.LongTensor(batchsize,10).random_(0, 10).to(device)
-            new_embed = new_label[:,0].view(-1)
+            new_label = torch.LongTensor(batchsize, 10).random_(0, 10).to(device)
+            new_embed = new_label[:, 0].view(-1)
 
             G_result = netG(fixed_noise, new_embed)
 
             D_fake_result = netD(G_result, new_embed)
-            G_train_loss = criterion(D_fake_result.view(batchsize,-1), real_label)
+            G_train_loss = criterion(D_fake_result.view(batchsize, -1), real_label)
 
 
             # Back propagation
@@ -211,7 +193,7 @@ def main():
             G_train_loss.backward()
             optimizerG.step()
 
-            if index % 20 == 0: print("D_loss:%f\tG_loss:%f" % (D_train_loss,G_train_loss))
+            if index % 20 == 0: print("D_loss:%f\tG_loss:%f" % (D_train_loss, G_train_loss))
             index += 1 * batchsize
 
 main()
